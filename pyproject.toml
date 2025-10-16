@@ -29,6 +29,7 @@ dependencies = [
     "psutil",
     "bitsandbytes",
     "vllm",
+    "accelerate"
 ]
 
 [project.optional-dependencies]
