@@ -124,6 +124,7 @@ class GameManager(abc.ABC):
         )  # Adds the freshly generated rollout to the game state associated with this agent's nodes at this stage
 
     def run_game_round(self):
+        print(f"[MEMORY] Before round {self.state.round}: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
         # Loop through stages until end of round is hit
         while not self.end_of_round():
             self.run_game_stage()  # Generates rollout and updates the game state
@@ -150,6 +151,7 @@ class GameManager(abc.ABC):
         )  # Resets the game state appropriately, stages the next round, and increments round/stage counters appropriatelly
         self.rewards.reset()
         self._hook_after_round_advanced()  # Call hook
+        print(f"[MEMORY] After round {self.state.round}: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
     def run_game(self):
         # Initialize game and/or run specific details of game state

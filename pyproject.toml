@@ -30,7 +30,7 @@ dependencies = [
     "bitsandbytes",
     "vllm",
     "accelerate",
-    "flashinfer"
+    "flashinfer-python"
 ]
 
 [project.optional-dependencies]

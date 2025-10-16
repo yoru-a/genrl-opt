@@ -1,5 +1,6 @@
 import logging
 import os
+import builtins
 from dataclasses import dataclass
 from types import TracebackType
 from typing import Optional, Type
@@ -16,6 +17,13 @@ from genrl.communication.communication import Communication
 from genrl.communication.distributed.torch_comm import TorchBackend
 from genrl.logging_utils.global_defs import get_logger
 
+_real_from_pretrained = AutoModelForCausalLM.from_pretrained
+
+def logged_from_pretrained(*args, **kwargs):
+    print(f"[DEBUG] Model loaded: {args[0]}")
+    return _real_from_pretrained(*args, **kwargs)
+
+AutoModelForCausalLM.from_pretrained = logged_from_pretrained
 
 @dataclass
 class _DistributedContext:
