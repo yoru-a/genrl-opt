@@ -21,8 +21,6 @@ from genrl.state import GameState
 from genrl.trainer import TrainerModule
 from genrl.trainer.trainer_utils import DTYPE_MAP
 
-
-
 def create_reference_model(model: torch.nn.Module) -> torch.nn.Module:
     ref_model = deepcopy(model)
     for param in model.parameters():

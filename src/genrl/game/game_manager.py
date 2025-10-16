@@ -152,6 +152,7 @@ class GameManager(abc.ABC):
         self.rewards.reset()
         self._hook_after_round_advanced()  # Call hook
         print(f"[MEMORY] After round {self.state.round}: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+        print(f"[DEBUG] Length of self._metrics['train']['loss']: {len(self._metrics['train']['loss'])}")
 
     def run_game(self):
         # Initialize game and/or run specific details of game state
