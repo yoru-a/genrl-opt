@@ -50,7 +50,8 @@ class GRPOTrainerConfig:
     device_map: Optional[str] = "auto"
     trust_remote_code: bool = False
     low_cpu_mem_usage: bool = True
-    force_cpu: bool = False  # force CPU even if GPU present
+    force_cpu: bool = False # force CPU even if GPU present
+    gpu_memory_utilization: float = 0.9
     
 class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
     """
@@ -188,7 +189,12 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
             if model_name_or_path is None:
                 print("[ERROR] vLLM requires model.config._name_or_path to be set.")
                 sys.exit(1)
-            self.vllm_engine = LLM(model=model_name_or_path, trust_remote_code=self.trust_remote_code, dtype=self.dtype_str)
+            self.vllm_engine = LLM(
+                model=model_name_or_path, 
+                trust_remote_code=self.trust_remote_code, 
+                dtype=self.dtype_str,
+                gpu_memory_utilization=self.args.gpu_memory_utilization
+            )
             return
         # bitsandbytes (GPU only, not force_cpu)
         if self.quantization in ("bnb_4bit", "bnb_8bit"):
