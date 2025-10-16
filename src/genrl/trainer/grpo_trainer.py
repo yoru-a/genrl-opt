@@ -52,8 +52,6 @@ class GRPOTrainerConfig:
     low_cpu_mem_usage: bool = True
     force_cpu: bool = False  # force CPU even if GPU present
     
-
-
 class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
     """
     GRPO trainer supporting vLLM, bitsandbytes (4/8bit), CPU int8, and standard full-precision.
@@ -84,7 +82,7 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
             dtype_str = "float32"
         else:
             dtype_str = self.dtype_config
-        self.dtype = torch.float16 if dtype_str == "float16" else torch.float32
+        self.dtype = DTYPE_MAP.get(dtype_str, torch.float32)
         self.dtype_str = dtype_str  # for vLLM which takes a string
 
         # --- Device selection ---
