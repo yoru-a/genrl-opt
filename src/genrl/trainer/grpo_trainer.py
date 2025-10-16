@@ -345,7 +345,7 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
                 n=self.args.num_generations,
                 temperature=self.args.temperature,
                 top_p=self.args.top_p,
-                top_k=self.args.top_k,
+                top_k=self.args.top_k if self.args.top_k is not None else -1,
                 min_p=self.args.min_p,
                 max_tokens=self.args.max_new_tokens,
                 repetition_penalty=self.args.repetition_penalty,
