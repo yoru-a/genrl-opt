@@ -3,7 +3,6 @@ import os
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, List
 
 import torch
 from transformers import (
