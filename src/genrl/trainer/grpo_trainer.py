@@ -362,10 +362,11 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
         for _ in range(self.args.num_generations):
             with torch.no_grad():
                 if self.inference_model is not None and self.quantization in {"bnb_4bit", "bnb_8bit"}:
+                    device = self.inference_model.device
                     outputs = inference_model.generate(
-                        input_ids=input_tokens.input_ids,
-                        attention_mask=input_tokens.attention_mask,
-                        generation_config=self.generation_config,
+                     input_ids=input_tokens.input_ids.to(device),
+                     attention_mask=input_tokens.attention_mask.to(device),
+                     generation_config=self.generation_config,
                     )
                 elif self.inference_model is not None and self.quantization == "cpu_int8":
                     outputs = inference_model.generate(
@@ -374,9 +375,10 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
                         generation_config=self.generation_config,
                     )
                 else:
+                    device = inference_model.device
                     outputs = inference_model.generate(
-                        input_tokens.input_ids.to(self.model.device),
-                        attention_mask=input_tokens.attention_mask.to(self.model.device, dtype=self.dtype),
+                        input_ids=input_tokens.input_ids.to(device),
+                        attention_mask=input_tokens.attention_mask.to(device, dtype=self.dtype),
                         generation_config=self.generation_config,
                     )
             prompt_length = input_tokens.input_ids.size(1)
