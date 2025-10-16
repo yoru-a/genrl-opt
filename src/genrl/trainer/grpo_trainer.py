@@ -37,6 +37,7 @@ class GRPOTrainerConfig:
     dtype: str = "float32"
     enable_gradient_checkpointing: bool = True
     max_new_tokens: int = 256
+    max_tokens: int = 256
     num_generations: int = 2
     learning_rate: float = 1e-5
     top_p: float = 1.0
