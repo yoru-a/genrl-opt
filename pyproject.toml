@@ -27,6 +27,8 @@ dependencies = [
     "web3",
     "hivemind",
     "psutil",
+    "bitsandbytes",
+    "vllm",
 ]
 
 [project.optional-dependencies]
