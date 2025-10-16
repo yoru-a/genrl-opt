@@ -6,6 +6,7 @@ from typing import Optional, Type
 
 import hydra
 import torch
+torch.set_float32_matmul_precision('high')
 import torch.distributed
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
