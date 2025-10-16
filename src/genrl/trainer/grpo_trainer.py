@@ -75,7 +75,7 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
         has_cuda = torch.cuda.is_available()
         has_mps = torch.backends.mps.is_available()
 
-        # -- DType selection (enforce float32 for CPU, allow config for GPU) ---
+        # --- DType selection (enforce float32 for CPU, allow config for GPU) ---
         # - For force_cpu or cpu_int8 or CPU-only: float32
         # - For GPU vLLM/bnb/none: user config (float32/float16)
         if self.force_cpu or self.quantization == "cpu_int8" or (not has_cuda and not has_mps):
@@ -195,7 +195,7 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
             if model_name_or_path is None:
                 print("[ERROR] bitsandbytes quantization requires model.config._name_or_path to be set.")
                 sys.exit(1)
-                quant_config_kwargs = {}
+            quant_config_kwargs = {}
             if self.quantization == "bnb_4bit":
                 quant_config_kwargs = dict(
                     load_in_4bit=True,
@@ -568,7 +568,7 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
             os.path.join(save_dir, "trainer_state.pt"),
         )
 
-     @classmethod
+    @classmethod
     def load(cls, load_dir: str) -> "GRPOLanguageTrainerModule":
         model = AutoModelForCausalLM.from_pretrained(load_dir)
         trainer = cls([model], GRPOTrainerConfig())
