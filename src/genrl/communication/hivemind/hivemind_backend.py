@@ -90,21 +90,38 @@ class HivemindBackend(Communication):
             )
         self.step_ = 0
 
-    print(f"[DEBUG] Sending object of type {type(obj)}, size (approx): {sys.getsizeof(obj)}")
+    def prune_large_lists(obj, max_length=100):
+    """Recursively prune all lists in a dict to max_length."""
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if isinstance(v, list) and len(v) > max_length:
+                print(f"[DEBUG] Pruning list at obj['{k}'] from {len(v)} to {max_length}")
+                obj[k] = v[-max_length:]
+            elif isinstance(v, dict):
+                prune_large_lists(v, max_length)
+    return obj
 
     def all_gather_object(self, obj: Any) -> Dict[str | int, Any]:
         key = str(self.step_)
         try:
             _ = self.dht.get_visible_maddrs(latest=True)
-            obj_bytes = to_bytes(obj)
-            self.dht.store(
-                key,
-                subkey=str(self.dht.peer_id),
-                value=obj_bytes,
-                expiration_time=get_dht_time() + self.timeout,
-                beam_size=self.beam_size,  
-            )
-            
+        try:
+            print(f"[DEBUG] all_gather_object: sending object of type={type(obj)}, approx size={sys.getsizeof(obj)} bytes")
+        except Exception as e:
+            print(f"[DEBUG] all_gather_object: error sizing object: {e}")
+        
+        # PRUNE ALL LARGE LISTS BEFORE SERIALIZATION
+        obj = prune_large_lists(obj, max_length=100)
+        
+        obj_bytes = to_bytes(obj)
+        self.dht.store(
+            key,
+            subkey=str(self.dht.peer_id),
+            value=obj_bytes,
+            expiration_time=get_dht_time() + self.timeout,
+            beam_size=self.beam_size,  
+        )
+ 
             time.sleep(1)
             t_ = time.monotonic()
             while True:
