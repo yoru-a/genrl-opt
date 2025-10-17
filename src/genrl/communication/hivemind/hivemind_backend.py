@@ -99,7 +99,7 @@ class HivemindBackend(Communication):
                     obj[k] = v[-max_length:]
                 elif isinstance(v, dict):
                     prune_large_lists(v, max_length)
-    return obj
+        return obj
 
     def all_gather_object(self, obj: Any) -> Dict[str | int, Any]:
         key = str(self.step_)
