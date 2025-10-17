@@ -95,10 +95,10 @@ class HivemindBackend(Communication):
         if isinstance(obj, dict):
             for k, v in obj.items():
                 if isinstance(v, list) and len(v) > max_length:
-                print(f"[DEBUG] Pruning list at obj['{k}'] from {len(v)} to {max_length}")
-                obj[k] = v[-max_length:]
-            elif isinstance(v, dict):
-                prune_large_lists(v, max_length)
+                    print(f"[DEBUG] Pruning list at obj['{k}'] from {len(v)} to {max_length}")
+                    obj[k] = v[-max_length:]
+                elif isinstance(v, dict):
+                    prune_large_lists(v, max_length)
     return obj
 
     def all_gather_object(self, obj: Any) -> Dict[str | int, Any]:
