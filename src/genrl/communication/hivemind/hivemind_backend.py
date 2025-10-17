@@ -111,16 +111,16 @@ class HivemindBackend(Communication):
                 print(f"[DEBUG] all_gather_object: error sizing object: {e}")
         
         # PRUNE ALL LARGE LISTS BEFORE SERIALIZATION
-        obj = prune_large_lists(obj, max_length=100)
+            obj = prune_large_lists(obj, max_length=100)
         
-        obj_bytes = to_bytes(obj)
-        self.dht.store(
-            key,
-            subkey=str(self.dht.peer_id),
-            value=obj_bytes,
-            expiration_time=get_dht_time() + self.timeout,
-            beam_size=self.beam_size,  
-        )
+            obj_bytes = to_bytes(obj)
+            self.dht.store(
+                key,
+                subkey=str(self.dht.peer_id),
+                value=obj_bytes,
+                expiration_time=get_dht_time() + self.timeout,
+                beam_size=self.beam_size,  
+            )
  
             time.sleep(1)
             t_ = time.monotonic()
