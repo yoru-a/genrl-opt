@@ -91,7 +91,7 @@ class HivemindBackend(Communication):
         self.step_ = 0
 
     def prune_large_lists(obj, max_length=100):
-    """Recursively prune all lists in a dict to max_length."""
+        """Recursively prune all lists in a dict to max_length."""
         if isinstance(obj, dict):
             for k, v in obj.items():
                 if isinstance(v, list) and len(v) > max_length:
