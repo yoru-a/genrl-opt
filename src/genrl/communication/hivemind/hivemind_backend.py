@@ -105,10 +105,10 @@ class HivemindBackend(Communication):
         key = str(self.step_)
         try:
             _ = self.dht.get_visible_maddrs(latest=True)
-        try:
-            print(f"[DEBUG] all_gather_object: sending object of type={type(obj)}, approx size={sys.getsizeof(obj)} bytes")
-        except Exception as e:
-            print(f"[DEBUG] all_gather_object: error sizing object: {e}")
+            try:
+                print(f"[DEBUG] all_gather_object: sending object of type={type(obj)}, approx size={sys.getsizeof(obj)} bytes")
+            except Exception as e:
+                print(f"[DEBUG] all_gather_object: error sizing object: {e}")
         
         # PRUNE ALL LARGE LISTS BEFORE SERIALIZATION
         obj = prune_large_lists(obj, max_length=100)
