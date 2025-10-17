@@ -92,6 +92,7 @@ def string_from_bytes(b: bytes, i: int) -> Tuple[str, int]:
 def list_from_bytes(b: bytes, i: int) -> Tuple[List[Any], int]:
     n_items = int.from_bytes(b[i : (i + 8)], byteorder="big", signed=False)
     i += 8
+    print(f"[DEBUG] n_items to deserialize: {n_items}")
     out = [None] * n_items
 
     for k in range(n_items):

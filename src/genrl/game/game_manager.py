@@ -154,7 +154,16 @@ class GameManager(abc.ABC):
         self.rewards.reset()
         self._hook_after_round_advanced()  # Call hook
         print(f"[MEMORY] After round {self.state.round}: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+        max_keep = 100
         print(f"[DEBUG] Length of self.trainer._metrics['train']['loss']: {len(self.trainer._metrics['train']['loss'])}")
+
+        # --- ADD THIS BLOCK TO PRUNE METRICS ---
+        if len(self.trainer._metrics['train']['loss']) > max_keep:
+            self.trainer._metrics['train']['loss'] = self.trainer._metrics['train']['loss'][-max_keep:]
+        # If you have other metrics, prune them similarly:
+        for key in self.trainer._metrics['train']:
+            if isinstance(self.trainer._metrics['train'][key], list) and len(self.trainer._metrics['train'][key]) > max_keep:
+                self.trainer._metrics['train'][key] = self.trainer._metrics['train'][key][-max_keep:]
 
     def run_game(self):
         # Initialize game and/or run specific details of game state

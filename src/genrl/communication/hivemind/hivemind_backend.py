@@ -1,4 +1,5 @@
 import os
+import sys
 import pickle
 import time
 from typing import Any, Dict, List
@@ -88,6 +89,8 @@ class HivemindBackend(Communication):
                 **kwargs,
             )
         self.step_ = 0
+
+    print(f"[DEBUG] Sending object of type {type(obj)}, size (approx): {sys.getsizeof(obj)}")
 
     def all_gather_object(self, obj: Any) -> Dict[str | int, Any]:
         key = str(self.step_)
