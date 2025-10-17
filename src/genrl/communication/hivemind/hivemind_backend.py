@@ -89,7 +89,8 @@ class HivemindBackend(Communication):
                 **kwargs,
             )
         self.step_ = 0
-
+        
+    @staticmethod
     def prune_large_lists(obj, max_length=100):
         """Recursively prune all lists in a dict to max_length."""
         if isinstance(obj, dict):
