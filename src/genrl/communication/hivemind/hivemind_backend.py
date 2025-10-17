@@ -89,18 +89,6 @@ class HivemindBackend(Communication):
                 **kwargs,
             )
         self.step_ = 0
-        
-    @staticmethod
-    def prune_large_lists(obj, max_length=100):
-        """Recursively prune all lists in a dict to max_length."""
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if isinstance(v, list) and len(v) > max_length:
-                    print(f"[DEBUG] Pruning list at obj['{k}'] from {len(v)} to {max_length}")
-                    obj[k] = v[-max_length:]
-                elif isinstance(v, dict):
-                    prune_large_lists(v, max_length)
-        return obj
 
     def all_gather_object(self, obj: Any) -> Dict[str | int, Any]:
         key = str(self.step_)
@@ -112,7 +100,7 @@ class HivemindBackend(Communication):
                 print(f"[DEBUG] all_gather_object: error sizing object: {e}")
         
         # PRUNE ALL LARGE LISTS BEFORE SERIALIZATION
-            obj = prune_large_lists(obj, max_length=100)
+            #obj = prune_large_lists(obj, max_length=100)
         
             obj_bytes = to_bytes(obj)
             self.dht.store(
