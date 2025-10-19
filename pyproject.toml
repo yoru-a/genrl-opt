@@ -29,8 +29,7 @@ dependencies = [
     "psutil",
     "bitsandbytes",
     "vllm",
-    "accelerate",
-    "flashinfer-python"
+    "accelerate"
 ]
 
 [project.optional-dependencies]
