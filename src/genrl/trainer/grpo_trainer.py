@@ -69,7 +69,7 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
         self.trust_remote_code = getattr(self.args, "trust_remote_code", False)
         self.low_cpu_mem_usage = getattr(self.args, "low_cpu_mem_usage", True)
         self.optimizer_type = getattr(self.args, "optimizer", "Adam")
-        self.force_cpu = getattr(self.args, "force_cpu", False)
+        self.force_cpu = str(self.force_cpu).lower() in ("1", "true", "yes")
         self.dtype_config = getattr(self.args, "dtype", "float32") # "float32" or "float16"
 
         # Hardware detection
