@@ -14,6 +14,10 @@ from transformers import (
     BitsAndBytesConfig,
 )
 
+from optimum.onnxruntime import ORTModelForCausalLM
+from optimum.intel.openvino import OVModelForCausalLM
+
+
 from genrl.data import DataManager
 from genrl.logging_utils.ml_logger import LoggerMixin
 from genrl.rewards import RewardManager
@@ -26,6 +30,47 @@ def create_reference_model(model: torch.nn.Module) -> torch.nn.Module:
     for param in model.parameters():
         param.requires_grad = False
     return ref_model.eval()
+
+def detect_cpu_vendor():
+    vendor = "other"
+    try:
+        with open('/proc/cpuinfo') as f:
+            cpuinfo = f.read()
+        if 'GenuineIntel' in cpuinfo:
+            vendor = "intel"
+        elif 'AuthenticAMD' in cpuinfo:
+            vendor = "amd"
+        elif 'ARM' in cpuinfo or 'aarch64' in cpuinfo:
+            vendor = "arm"
+    except Exception:
+        pass
+    return vendor
+
+def detect_cuda_environment():
+    """Detect CUDA version and GPU compute capability."""
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA is not available. Please ensure you have an NVIDIA GPU and CUDA drivers installed.")
+    cuda_version = torch.version.cuda
+    device_idx = torch.cuda.current_device()
+    device_name = torch.cuda.get_device_name(device_idx)
+    capability = torch.cuda.get_device_capability(device_idx)
+    return {
+        "cuda_version": cuda_version,
+        "device_name": device_name,
+        "compute_capability": capability,
+        "device_idx": device_idx
+    }
+
+def check_vllm_bnb_compatibility(selected_quantization):
+    if selected_quantization in ("bnb_4bit", "bnb_8bit", "vllm"):
+        env = detect_cuda_environment()
+        major, minor = env["compute_capability"]
+        if major < 7:
+            raise RuntimeError(
+                f"Your GPU ({env['device_name']}, compute capability {major}.{minor}) does not support vLLM/bitsandbytes quantization (requires compute capability >= 7.0)."
+            )
+        return env
+    return None
 
 @dataclass
 class GRPOTrainerConfig:
@@ -45,7 +90,7 @@ class GRPOTrainerConfig:
     repetition_penalty: float = 1.0
     num_iterations: int = 1
     optimizer: str = "Adam"
-    quantization: str = "none"  # one of: "none", "bnb_4bit", "bnb_8bit", "cpu_int8"
+    quantization: str = "none"  # one of: "none", "bnb_4bit", "bnb_8bit", "onnx_int8", "openvino_int8"
     use_vllm: bool = False
     device_map: Optional[str] = "auto"
     trust_remote_code: bool = False
@@ -96,12 +141,10 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
         if self.force_cpu:
             self.device = torch.device("cpu")
             if self.use_vllm:
-                print("[ERROR] vLLM cannot be used with force_cpu=True.")
-                sys.exit(1)
+                raise RuntimeError("vLLM cannot be used with force_cpu=True.")
             if self.quantization in ("bnb_4bit", "bnb_8bit"):
-                print("[ERROR] bitsandbytes quantization cannot be used with force_cpu=True.")
-                sys.exit(1)
-        elif self.quantization == "cpu_int8":
+                raise RuntimeError("bitsandbytes quantization cannot be used with force_cpu=True.")
+        elif self.quantization in ("onnx_int8", "openvino_int8"):
             self.device = torch.device("cpu")
         elif has_cuda and not self.force_cpu:
             self.device = torch.device("cuda")
@@ -114,17 +157,15 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
         # vLLM only allowed if on GPU and not force_cpu
         if self.use_vllm:
             if self.force_cpu or not has_cuda:
-                print("[ERROR] vLLM requires a CUDA GPU and cannot be used with force_cpu=True.")
-                sys.exit(1)
-        # bitsandbytes only allowed if on GPU and not force_cpu
+                raise RuntimeError("vLLM requires a CUDA GPU and cannot be used with force_cpu=True.")
+            check_vllm_bnb_compatibility(self.quantization)
         if self.quantization in ("bnb_4bit", "bnb_8bit"):
             if self.force_cpu or not has_cuda:
-                print(f"[ERROR] bitsandbytes {self.quantization} quantization requires a CUDA GPU and cannot be used with force_cpu=True.")
-                sys.exit(1)
-        # cpu_int8 only allowed on CPU
-        if self.quantization == "cpu_int8" and self.device.type != "cpu":
-            print("[ERROR] cpu_int8 quantization is only for CPU hosts. Please use quantization: none or bnb_4bit/bnb_8bit for GPU.")
-            sys.exit(1)
+                raise RuntimeError(f"bitsandbytes {self.quantization} quantization requires a CUDA GPU and cannot be used with force_cpu=True.")
+            check_vllm_bnb_compatibility(self.quantization)
+        # int8 quantization only allowed on CPU
+        if self.quantization in ("onnx_int8", "openvino_int8") and self.device.type != "cpu":
+            raise RuntimeError("int8 quantization is only for CPU hosts. Please use quantization: none or bnb_4bit/bnb_8bit for GPU.")
 
         self.save_dir = kwargs.get("log_dir", "./outputs")
         self.callbacks = kwargs.get("callbacks", [])
@@ -160,10 +201,29 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
             raise ValueError("Unsupported optimizer. Use 'Adam' or 'SGD'.")
             
     def _initialize_model(self, enable_gradient_checkpointing):
-        try:
-            self.model = self.model.to(device=self.device, dtype=self.dtype)
-        except Exception:
-            self.model = self.model.to(device=self.device)
+        # Optimum ONNX/OpenVINO int8 support
+        if self.quantization in ("onnx_int8", "openvino_int8"):
+            model_name_or_path = getattr(getattr(self.model, "config", None), "_name_or_path", None)
+            cpu_vendor = detect_cpu_vendor()
+            # OpenVINO for Intel, ONNX for others
+            if self.quantization == "openvino_int8" or (self.quantization == "onnx_int8" and cpu_vendor == "intel"):
+                if OVModelForCausalLM is None:
+                    raise ImportError("Optimum OpenVINO not installed. Run 'pip install optimum[openvino]'")
+                print("[INFO] Loading model with Optimum OpenVINO backend (int8)...")
+                ov_model = OVModelForCausalLM.from_pretrained(model_name_or_path)
+                self.model = ov_model
+            else:
+                if ORTModelForCausalLM is None:
+                    raise ImportError("Optimum ONNX Runtime not installed. Run 'pip install optimum[onnxruntime]'")
+                print("[INFO] Loading model with Optimum ONNX Runtime backend (int8)...")
+                ort_model = ORTModelForCausalLM.from_pretrained(model_name_or_path)
+                self.model = ort_model
+        else:
+            # Standard fallback path: float32/float16/other, not quantized
+            try:
+                self.model = self.model.to(device=self.device, dtype=self.dtype)
+            except Exception:
+                self.model = self.model.to(device=self.device)
         if enable_gradient_checkpointing:
             try:
                 self.model.gradient_checkpointing_enable()
@@ -184,14 +244,12 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
             try:
                 from vllm import LLM
             except Exception:
-                print("[ERROR] vLLM backend requested but vllm is not installed. Run `pip install vllm`.")
-                sys.exit(1)
+                raise ImportError("vLLM backend requested but vllm is not installed. Run `pip install vllm`.")
             if model_name_or_path is None:
-                print("[ERROR] vLLM requires model.config._name_or_path to be set.")
-                sys.exit(1)
+                raise ValueError("vLLM requires model.config._name_or_path to be set.")
             self.vllm_engine = LLM(
-                model=model_name_or_path, 
-                trust_remote_code=self.trust_remote_code, 
+                model=model_name_or_path,
+                trust_remote_code=self.trust_remote_code,
                 dtype=self.dtype_str,
                 gpu_memory_utilization=self.args.gpu_memory_utilization
             )
@@ -199,8 +257,8 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
         # bitsandbytes (GPU only, not force_cpu)
         if self.quantization in ("bnb_4bit", "bnb_8bit"):
             if model_name_or_path is None:
-                print("[ERROR] bitsandbytes quantization requires model.config._name_or_path to be set.")
-                sys.exit(1)
+                raise ValueError("bitsandbytes quantization requires model.config._name_or_path to be set.")
+            check_model_bnb_compatibility(model_name_or_path, self.quantization)
             quant_config_kwargs = {}
             if self.quantization == "bnb_4bit":
                 quant_config_kwargs = dict(
@@ -219,19 +277,6 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
                 model_name_or_path,
                 quantization_config=quant_config,
                 device_map=self.device_map,
-                trust_remote_code=self.trust_remote_code,
-                low_cpu_mem_usage=self.low_cpu_mem_usage
-            )
-            self.inference_model = inf_model
-    # cpu_int8
-        if self.quantization == "cpu_int8":
-            if model_name_or_path is None:
-                print("[ERROR] cpu_int8 quantization requires model.config._name_or_path to be set.")
-                sys.exit(1)
-            inf_model = AutoModelForCausalLM.from_pretrained(
-                model_name_or_path,
-                device_map="cpu",
-                torch_dtype=torch.float32,
                 trust_remote_code=self.trust_remote_code,
                 low_cpu_mem_usage=self.low_cpu_mem_usage
             )

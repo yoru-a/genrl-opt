@@ -29,7 +29,9 @@ dependencies = [
     "psutil",
     "bitsandbytes",
     "vllm",
-    "accelerate"
+    "accelerate",
+    "optimum-onnx[onnxruntime]",
+    "optimum[openvino]"
 ]
 
 [project.optional-dependencies]
