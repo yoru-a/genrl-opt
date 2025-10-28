@@ -205,6 +205,12 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
         if self.quantization in ("onnx_int8", "openvino_int8"):
             model_name_or_path = getattr(getattr(self.model, "config", None), "_name_or_path", None)
             cpu_vendor = detect_cpu_vendor()
+            # Diagnostic logging
+            from transformers import AutoConfig
+            config = AutoConfig.from_pretrained(model_name_or_path)
+            print(f"[DEBUG] Model name/path: {model_name_or_path}")
+            print(f"[DEBUG] Model type: {config.model_type}")
+            print(f"[DEBUG] Architectures: {config.architectures}")
             # OpenVINO for Intel, ONNX for others
             if self.quantization == "openvino_int8" or (self.quantization == "onnx_int8" and cpu_vendor == "intel"):
                 if OVModelForCausalLM is None:
@@ -216,6 +222,7 @@ class GRPOLanguageTrainerModule(TrainerModule, LoggerMixin):
                 if ORTModelForCausalLM is None:
                     raise ImportError("Optimum ONNX Runtime not installed. Run 'pip install optimum[onnxruntime]'")
                 print("[INFO] Loading model with Optimum ONNX Runtime backend (int8)...")
+                print("[DEBUG] About to call ORTModelForCausalLM.from_pretrained (ONNX export).")
                 ort_model = ORTModelForCausalLM.from_pretrained(model_name_or_path)
                 self.model = ort_model
         else:
